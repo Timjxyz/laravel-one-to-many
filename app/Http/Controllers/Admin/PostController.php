@@ -5,7 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Post;
 use Illuminate\Http\Request;
-
+use Illuminate\Support\Str;
+use App\Category;
 class PostController extends Controller
 {
     /**
@@ -27,7 +28,8 @@ class PostController extends Controller
      */
     public function create()
     {
-        return view('admin.post.create');
+        $categories = Category::all();
+        return view('admin.post.create', compact('categories'));
     }
 
     /**
@@ -41,10 +43,30 @@ class PostController extends Controller
 
         $request->validate(
             [
-                'title'=>'required|min5',
-                'content'=>'required|min10',
+                'title'=>'required|min:5',
+                'content'=>'required|min:10',
+                'category_id' => 'nullable|exists:categories,id',
             ]
         );
+
+        $data = $request->all();
+        $slug = Str::slug($data['title']);
+        
+
+        $counter = 1;
+
+        while (Post::where('slug', '=', $slug)->first()) {
+            //impara-a-programmare-1
+            $slug = Str::slug($data['title']) . '-' . $counter;
+            $counter++;
+        }
+
+        $data['slug'] = $slug;
+        $post = new Post();
+        $post->fill($data);
+        $post->save();
+
+        return redirect()->route('admin.posts.index');
        
     }
 
@@ -54,9 +76,9 @@ class PostController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function show($id)
+    public function show(Post $post)
     {
-        //
+        return view('admin.post.show', compact('post'));
     }
 
     /**
@@ -65,9 +87,10 @@ class PostController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function edit($id)
+    public function edit(Post $post)
     {
-        //
+        $categories = Category::all();
+        return view('admin.post.edit', compact('post', 'categories',));
     }
 
     /**
@@ -77,9 +100,31 @@ class PostController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, $id)
+    public function update(Request $request,  Post $post)
     {
-        //
+        $request->validate(
+            [
+                'title' => 'required|min:5',
+                'content' => 'required|min:10',
+                'category_id' => 'nullable|exists:categories,id',
+            ]
+        );
+
+        $data = $request->all();
+        $slug = Str::slug($data['title']);
+
+        if ($post->slug != $slug) {
+            $counter = 1;
+            while ( Post::where('slug', '=', $slug)->first() ) {
+                $slug = Str::slug($data['title']) . '-' . $counter;
+                $counter++;
+            }
+            $data['slug'] = $slug;
+        }
+
+        $post->update($data);
+        $post->save();
+        return redirect()->route('admin.posts.index');
     }
 
     /**
@@ -88,8 +133,9 @@ class PostController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function destroy($id)
+    public function destroy(Post $post)
     {
-        //
+        $post->delete();
+        return redirect()->route('admin.posts.index');
     }
 }
